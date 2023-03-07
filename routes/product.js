@@ -1,34 +1,41 @@
 const Product = require('../models/Product');
 const router = require('express').Router();
+const cloudinary = require('../utils/cloudinary');
 const { verifyToken, verifyTokenAuthorization, verifyTokenAdmin } = require('./verifyToken');
 const multer = require('multer');
+const storage = multer.memoryStorage();
+const upload = multer({ dest: "../uploads" });
+const { uploader } = require("../utils/cloudinary");
 
-const storage = multer.diskStorage({
-    destination:(req,file,callback)=>{
-        callback(null,'../client/public/assets/')
-    },
-    filename:(req,file,callback)=>{
-        callback(null,file.originalname)
-    }
-})
 
-const upload = multer({storage:storage})
+const saveProduct = async (product) => {
+    const newProduct = new Product(product);
+    const savedProduct = await newProduct.save();
+    console.log(savedProduct);
+    return savedProduct;
+}
+  
 
 //create a new product;
-router.post('/', verifyTokenAdmin, upload.array("photos",12), async(req,res)=>{
-    const newProduct = new Product({
-        size:req.body.size,
-        price:req.body.price,
-        desc:req.body.details,
-        title:req.body.title,
-        qty:req.body.quantity,
-        inStock:req.body.stock,
-        image:req.files
-    });
+router.post('/', verifyTokenAdmin, upload.array("photos"), async(req,res)=>{
     try{
-        const savedProduct = await newProduct.save();
-        res.status(200).json({message:"Product Added"});
+        const uploadPromises = req.files.map(async file => {
+            const result = await cloudinary.uploader.upload(file.path);
+            return result;
+        });
+
+        const uploadResults = await Promise.all(uploadPromises);
+        const image = uploadResults.map(result => {
+        return {public_id:result.public_id, url:result.url}
+        });
+
+        const newProduct = {...req.body, image: photos};
+        const savedProduct = await saveProduct(newProduct);
         console.log(savedProduct);
+        res.json({
+            message: "Images uploaded successfully",
+            product: savedProduct
+        });
     }
     catch(err){
         res.status(500).json({err:err, message:"Product Not Added!"});
