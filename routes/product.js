@@ -29,7 +29,7 @@ router.post('/', verifyTokenAdmin, upload.array("photos"), async(req,res)=>{
         return {public_id:result.public_id, url:result.url}
         });
 
-        const newProduct = {...req.body, image: photos};
+        const newProduct = {...req.body, image: image};
         const savedProduct = await saveProduct(newProduct);
         console.log(savedProduct);
         res.json({
